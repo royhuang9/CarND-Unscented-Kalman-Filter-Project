@@ -2,7 +2,7 @@
 #define UKF_H
 
 #include "measurement_package.h"
-#include "Eigen/Dense"
+#include <Eigen/Dense>
 #include <vector>
 #include <string>
 #include <fstream>
@@ -31,6 +31,8 @@ public:
 
   ///* predicted sigma points matrix
   MatrixXd Xsig_pred_;
+  
+  MatrixXd H_;
 
   ///* time when the state is true, in us
   long long time_us_;
@@ -74,6 +76,7 @@ public:
   ///* the current NIS for laser
   double NIS_laser_;
 
+  double previous_timestamp_;
   /**
    * Constructor
    */
@@ -90,6 +93,14 @@ public:
    */
   void ProcessMeasurement(MeasurementPackage meas_package);
 
+  void GenerateSigmaPoints(MatrixXd &Xsig_out);
+  
+  void OnePointPrediction(VectorXd &X_in, VectorXd &X_out, double dt);
+  
+  void SigmaPointPrediction(MatrixXd &Xsig_aug, MatrixXd &Xsig_pred, double dt);
+  
+  void PredictMeanAndCovariance(MatrixXd &Xsig_pred, VectorXd &x_out, MatrixXd &P_out);
+  
   /**
    * Prediction Predicts sigma points, the state, and the state covariance
    * matrix

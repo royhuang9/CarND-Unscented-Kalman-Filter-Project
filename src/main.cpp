@@ -4,7 +4,7 @@
 #include <sstream>
 #include <vector>
 #include <stdlib.h>
-#include "Eigen/Dense"
+#include <Eigen/Dense>
 #include "ukf.h"
 #include "ground_truth_package.h"
 #include "measurement_package.h"
@@ -87,7 +87,7 @@ int main(int argc, char* argv[]) {
       // laser measurement
 
       // read measurements at this timestamp
-      meas_package.sensor_type_ = MeasurementPackage::LASER;
+      meas_package.sensor_type_ = SensorType::LASER;
       meas_package.raw_measurements_ = VectorXd(2);
       float px;
       float py;
@@ -101,7 +101,7 @@ int main(int argc, char* argv[]) {
       // radar measurement
 
       // read measurements at this timestamp
-      meas_package.sensor_type_ = MeasurementPackage::RADAR;
+      meas_package.sensor_type_ = SensorType::RADAR;
       meas_package.raw_measurements_ = VectorXd(3);
       float ro;
       float phi;
@@ -173,7 +173,7 @@ int main(int argc, char* argv[]) {
     out_file_ << ukf.x_(4) << "\t"; // yaw_rate -est
 
     // output lidar and radar specific data
-    if (measurement_pack_list[k].sensor_type_ == MeasurementPackage::LASER) {
+    if (measurement_pack_list[k].sensor_type_ == SensorType::LASER) {
       // sensor type
       out_file_ << "lidar" << "\t";
 
@@ -184,7 +184,7 @@ int main(int argc, char* argv[]) {
       out_file_ << measurement_pack_list[k].raw_measurements_(0) << "\t";
       out_file_ << measurement_pack_list[k].raw_measurements_(1) << "\t";
 
-    } else if (measurement_pack_list[k].sensor_type_ == MeasurementPackage::RADAR) {
+    } else if (measurement_pack_list[k].sensor_type_ == SensorType::RADAR) {
       // sensor type
       out_file_ << "radar" << "\t";
 
@@ -216,7 +216,6 @@ int main(int argc, char* argv[]) {
     
     estimations.push_back(ukf_x_cartesian_);
     ground_truth.push_back(gt_pack_list[k].gt_values_);
-
   }
 
   // compute the accuracy (RMSE)
