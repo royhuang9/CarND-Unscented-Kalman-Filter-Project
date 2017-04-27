@@ -2,6 +2,7 @@
 #include "tools.h"
 #include <Eigen/Dense>
 #include <iostream>
+#include <iomanip>
 
 using namespace std;
 using Eigen::MatrixXd;
@@ -95,6 +96,7 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
   
   /* if not initalized, use the first measurement to initialize x */
   if (!is_initialized_) {
+      
       x_.fill(0.0);
       
       if (meas_package.sensor_type_ == SensorType::RADAR) {
@@ -117,6 +119,8 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
       previous_timestamp_ = meas_package.timestamp_;
       
       is_initialized_ = true;
+      
+      return;
   }
   
   /* calculate the time difference */
@@ -125,6 +129,7 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
   /*If delta time is too small or zero, skip prediction */
   if (dt > 1e-6) {
     Prediction(dt);
+    previous_timestamp_ = meas_package.timestamp_;
   }
   
   /*update in term of sensor type */
@@ -138,9 +143,15 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
  * Generate sigma points
  */
 void UKF::GenerateSigmaPoints(MatrixXd &Xsig_aug) {
-      /* Create x_aug */
+  //cout <<"\nGenerateSigmaPoints:"<<endl;
+  
+  /* Create x_aug */
   VectorXd x_aug = VectorXd(n_aug_);
   x_aug.head(n_x_) = x_;
+  x_aug(n_x_) = 0.0;
+  x_aug(n_x_ + 1) = 0.0;
+  
+  //cout <<"x_aug_:\n"<<x_aug<<endl;
   
   /* Create P_aug */
   MatrixXd P_aug = MatrixXd::Zero(n_aug_, n_aug_);
@@ -148,15 +159,23 @@ void UKF::GenerateSigmaPoints(MatrixXd &Xsig_aug) {
   P_aug(n_x_, n_x_) = std_a_ * std_a_;
   P_aug(n_x_+1, n_x_+1) = std_yawdd_ * std_yawdd_;
  
+  //cout <<"P_aug:\n"<<P_aug<<endl;
+ 
   /* Calculate square root of P_aug */
   MatrixXd A = P_aug.llt().matrixL();
   
-  MatrixXd m = sqrt(lambda_ + n_aug_) * A;
+  A = sqrt(lambda_ + n_aug_) * A;
   
-
+  //cout << "A:\n"<<A<<endl;
+  
   Xsig_aug.col(0) = x_aug;
-  Xsig_aug.block(0, 1, n_aug_, n_aug_) = m.colwise() + x_aug;
-  Xsig_aug.block(0, n_aug_+1, n_aug_, n_aug_) = (-1.0) * (m.colwise() - x_aug);
+  //Xsig_aug.block(0, 1, n_aug_, n_aug_) = A.colwise() + x_aug;
+  //Xsig_aug.block(0, n_aug_+1, n_aug_, n_aug_) = (-1.0) * (A.colwise() - x_aug);
+  for (int i=0; i<n_aug_; i++) {
+      Xsig_aug.col(i + 1) = x_aug + A.col(i);
+      Xsig_aug.col(n_aug_ + i + 1) = x_aug - A.col(i);
+  }
+  //cout<<"Xsig_aug:\n"<<Xsig_aug<<endl;
 }
 
 void UKF::OnePointPrediction(VectorXd &X_in, VectorXd &X_out, double dt)
@@ -167,7 +186,7 @@ void UKF::OnePointPrediction(VectorXd &X_in, VectorXd &X_out, double dt)
     double phi = X_in(3);
     double phi_dot = X_in(4);
     double nu_a = X_in(5);
-    double nu_phi_dot_dot = X_in(6);
+    double nu_phidd = X_in(6);
     
     if (phi_dot < 1e-6) {
         X_out(0) = px + vel*cos(phi)*dt + 0.5*dt*dt*cos(phi)*nu_a;
@@ -177,34 +196,45 @@ void UKF::OnePointPrediction(VectorXd &X_in, VectorXd &X_out, double dt)
         X_out(1) = py + vel/phi_dot*(cos(phi) - cos(phi+phi_dot*dt)) + 0.5*dt*dt*sin(phi)*nu_a;
     }
     X_out(2) = vel + dt*nu_a;
-    X_out(3) = phi + phi_dot * dt + 0.5*dt*dt*nu_phi_dot_dot;
-    X_out(4) = phi_dot + dt*nu_phi_dot_dot;
+    X_out(3) = phi + phi_dot * dt + 0.5*dt*dt*nu_phidd;
+    X_out(4) = phi_dot + dt*nu_phidd;
 }
 
 
-void UKF::SigmaPointPrediction(MatrixXd &Xsig_aug, MatrixXd &Xsig_pred, double delta_t) 
+void UKF::SigmaPointPrediction(MatrixXd &Xsig_aug, double delta_t) 
 {
-
   for(int i=0; i < Xsig_aug.cols(); i++) {
-      VectorXd X_onevec(7);
-      X_onevec = Xsig_aug.col(i);
-      VectorXd X_onepred(5);
+      VectorXd X_onevec = Xsig_aug.col(i);
+      VectorXd X_onepred(n_x_);
       OnePointPrediction(X_onevec, X_onepred, delta_t);
-      Xsig_pred.col(i) = X_onepred;
+      Xsig_pred_.col(i) = X_onepred;
   }
 
 }
 
 /* calaculate mean and covariance*/
-void UKF::PredictMeanAndCovariance(MatrixXd &Xsig_pred, VectorXd &x_out, MatrixXd &P_out)
+void UKF::PredictMeanAndCovariance()
 {
+    x_.fill(0.0);
     for (int i=0; i < 2*n_aug_+1; i++) {
-        x_out = weights_[i] * Xsig_pred.col(i);
+        x_ += weights_[i] * Xsig_pred_.col(i);
     }
     
+    P_.fill(0.0);
     for (int i=0; i < 2*n_aug_+1; i++) {
-        VectorXd temp = Xsig_pred.col(i) - x_;
-        P_ += weights_[i]*(temp*temp.transpose());
+        VectorXd x_diff = Xsig_pred_.col(i) - x_;
+        
+           
+        /* Adjust the yaw */
+        while(x_diff(3) > M_PI)  {
+            x_diff(3) -= 2.0*M_PI;
+        }
+        
+        while(x_diff(3) < -M_PI) {
+            x_diff(3) += 2.0*M_PI;
+        }
+        
+        P_ += weights_[i]*(x_diff*x_diff.transpose());
     }
 }
 /**
@@ -220,15 +250,22 @@ void UKF::Prediction(double delta_t) {
   vector, x_. Predict sigma points, the state, and the state covariance matrix.
   */
   
+  //cout<<"\nPredict:"<<endl;
+  //cout<<"delta:"<<delta_t<<endl;
+  
   /* sigma points matrix */
-  MatrixXd Xsig_aug = MatrixXd::Zero(n_aug_, 2*n_aug_ + 1);
+  MatrixXd Xsig_aug = MatrixXd::Zero(n_aug_, 2 * n_aug_ + 1);
   GenerateSigmaPoints(Xsig_aug);
   
+  //cout<<"Xsig_aug:\n"<<Xsig_aug<<endl;
+  
   /* Predict sigma points */
-  SigmaPointPrediction(Xsig_aug, Xsig_pred_, delta_t);
+  SigmaPointPrediction(Xsig_aug, delta_t);
+  
+  //cout<<"Xsig_pred_:\n"<<Xsig_pred_<<endl;
   
   /* mean and covariance of predicted sigma points */
-  PredictMeanAndCovariance(Xsig_pred_, x_, P_);
+  PredictMeanAndCovariance();
 }
 
 /**
@@ -282,23 +319,18 @@ void UKF::UpdateRadar(MeasurementPackage meas_package) {
   VectorXd z_pred = VectorXd::Zero(n_z);
   
   MatrixXd S=MatrixXd::Zero(n_z, n_z);
-    for(int i = 0; i < 2*n_aug_ + 1; i++) {
-      double px = Xsig_pred_.col(i)(0);
-      double py = Xsig_pred_.col(i)(1);
-      double vel = Xsig_pred_.col(i)(2);
-      double phi = Xsig_pred_.col(i)(3);
-      double phi_dot = Xsig_pred_.col(i)(4);
+  for(int i = 0; i < 2*n_aug_ + 1; i++) {
+      double px = Xsig_pred_(0,i);
+      double py = Xsig_pred_(1,i);
+      double vel = Xsig_pred_(2,i);
+      double phi = Xsig_pred_(3,i);
+      //double phi_dot = Xsig_pred_.col(i)(4);
       
-      double rho = sqrt(px*px + py*py);
-      double psi = atan2(py, px);
-      double psi_dot = (px*cos(phi) + py*sin(phi))*vel/rho;
-      
-      Zsig.col(i)(0) = rho;
-      Zsig.col(i)(1) = psi;
-      Zsig.col(i)(2) = psi_dot;
+      Zsig(0,i) = sqrt(px*px + py*py);
+      Zsig(1,i) = atan2(py, px);
+      Zsig(2,i) = (px*cos(phi) + py*sin(phi))*vel/Zsig(0,i);
   }
   
-  z_pred.fill(0.0);
   for (int i=0; i < 2*n_aug_ + 1; i++) {
       z_pred += weights_(i) * Zsig.col(i);
   }
@@ -319,14 +351,35 @@ void UKF::UpdateRadar(MeasurementPackage meas_package) {
   /* Cross correlation */
   MatrixXd T = MatrixXd::Zero(n_x_, n_z);
   for (int i=0; i<2*n_aug_+1; i++) {
-      T += weights_(i) * (Xsig_pred_.col(i) - x_) * (Zsig.col(i) - z_pred).transpose();
+      VectorXd z_diff = Zsig.col(i) - z_pred;
+      
+      while(z_diff(1) > M_PI)
+          z_diff(1) -= 2.0 * M_PI;
+      while(z_diff(1) < -M_PI)
+          z_diff(1) += 2.0 * M_PI;
+    
+      VectorXd x_diff = Xsig_pred_.col(i) - x_;
+      
+      while(x_diff(3) > M_PI)
+          x_diff(3) -= 2.0 * M_PI;
+      while(x_diff(3) < -M_PI)
+          x_diff(3) += 2.0 * M_PI;
+          
+      T += weights_(i) * x_diff * z_diff.transpose();
   }
   
   /* Kalman Gain */
   MatrixXd Kg = T * S.inverse();
   
+  VectorXd z_diff = z - z_pred;
+
+  while (z_diff(1)> M_PI)
+      z_diff(1)-=2.*M_PI;
+  while (z_diff(1)<-M_PI)
+      z_diff(1)+=2.*M_PI;
+      
   /* state update */
-  x_ = x_ + Kg * (z - z_pred);
+  x_ = x_ + Kg * z_diff;
   
   /* Covariance matrix update */
   P_ = P_ - Kg * S * Kg.transpose();

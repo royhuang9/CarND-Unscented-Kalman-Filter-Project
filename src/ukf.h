@@ -97,9 +97,9 @@ public:
   
   void OnePointPrediction(VectorXd &X_in, VectorXd &X_out, double dt);
   
-  void SigmaPointPrediction(MatrixXd &Xsig_aug, MatrixXd &Xsig_pred, double dt);
+  void SigmaPointPrediction(MatrixXd &Xsig_aug, double dt);
   
-  void PredictMeanAndCovariance(MatrixXd &Xsig_pred, VectorXd &x_out, MatrixXd &P_out);
+  void PredictMeanAndCovariance();
   
   /**
    * Prediction Predicts sigma points, the state, and the state covariance

@@ -61,6 +61,8 @@ int main(int argc, char* argv[]) {
   ofstream out_file_(out_file_name_.c_str(), ofstream::out);
 
   check_files(in_file_, in_file_name_, out_file_, out_file_name_);
+  
+  cout.setf(ios::fixed | ios::left);
 
   /**********************************************
    *  Set Measurements                          *
