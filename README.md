@@ -1,8 +1,40 @@
-# Unscented Kalman Filter Project Starter Code
+# Unscented Kalman Filter Project NIS
 Self-Driving Car Engineer Nanodegree Program
 
 ---
+## NIS
+A tool showes NIS in tools/nis_ana.py
+When adjust sta_a and sta_yadd, the result of RMSE and NIS:
 
+### sta_a = 3, sta_yawdd=1
+RMSE = {0.075046, 0.084257, 0.357629, 0.249277}
+
+Radar NIS
+![Radar NIS](images/nis_radar_3_1.png)
+
+Lidar NIS
+![Lidar NIS](images/nis_lidar_3_1.png)
+
+
+### sta_a=30, sta_yawdd=30
+RMSE = {0.099771, 0.118847, 0.894729, 0.993396}
+
+Radar NIS
+![Radar NIS](images/nis_radar_30_30.png)
+
+Lidar NIS
+![Lidar NIS](images/nis_lidar_30_30.png)
+
+### sta_a = 0.2, sta_yawdd = 0.01
+RMSE = {1.055904, 0.841231, 1.422729, 1.090028}
+
+Radar NIS
+![Radar NIS](images/nis_radar_0.2_0.01.png)
+
+Lidar NIS
+![Lidar NIS](images/nis_lidar_0.2_0.01.png)
+
+---
 ## Dependencies
 
 * cmake >= v3.5
