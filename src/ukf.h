@@ -6,6 +6,9 @@
 #include <vector>
 #include <string>
 #include <fstream>
+#include <cmath>
+#include <ctgmath>
+#include <iostream>
 #include "tools.h"
 
 using Eigen::MatrixXd;
@@ -91,13 +94,13 @@ public:
    * ProcessMeasurement
    * @param meas_package The latest measurement data of either radar or laser
    */
-  void ProcessMeasurement(MeasurementPackage meas_package);
+  void ProcessMeasurement(const MeasurementPackage meas_package);
 
   void GenerateSigmaPoints(MatrixXd &Xsig_out);
   
-  void OnePointPrediction(VectorXd &X_in, VectorXd &X_out, double dt);
+  void OnePointPrediction(const VectorXd &X_in, VectorXd &X_out, const double dt);
   
-  void SigmaPointPrediction(MatrixXd &Xsig_aug, double dt);
+  void SigmaPointPrediction(MatrixXd &Xsig_aug, const double dt);
   
   void PredictMeanAndCovariance();
   
@@ -106,19 +109,38 @@ public:
    * matrix
    * @param delta_t Time between k and k+1 in s
    */
-  void Prediction(double delta_t);
+  void Prediction(const double delta_t);
 
   /**
    * Updates the state and the state covariance matrix using a laser measurement
    * @param meas_package The measurement at k+1
    */
-  void UpdateLidar(MeasurementPackage meas_package);
+  void UpdateLidar(const MeasurementPackage meas_package);
 
   /**
    * Updates the state and the state covariance matrix using a radar measurement
    * @param meas_package The measurement at k+1
    */
-  void UpdateRadar(MeasurementPackage meas_package);
+  void UpdateRadar(const MeasurementPackage meas_package);
+
+  inline double normalize_angle(const double angle)
+  {
+      double ret = fmod((angle + M_PI), 2*M_PI) - M_PI;
+
+      /*
+      double ret = angle;
+      while(ret > M_PI)
+          ret -= 2.0 * M_PI;
+      while(ret < -M_PI)
+          ret += 2.0 * M_PI;
+
+      if (angle > M_PI || angle < -M_PI) {
+        std::cout << "angle:"<< angle <<":"<<ret<<std::endl;
+      }
+        */
+
+      return ret;
+  }
 };
 
 #endif /* UKF_H */
