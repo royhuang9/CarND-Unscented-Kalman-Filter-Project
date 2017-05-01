@@ -319,11 +319,11 @@ void UKF::UpdateRadar(const MeasurementPackage meas_package) {
       double vel = Xsig_pred_(2,i);
       double phi = Xsig_pred_(3,i);
       //double phi_dot = Xsig_pred_.col(i)(4);
-      /*
-      if((px < 1e-6) && (py < 1e-6)) {
-          px = 0.001;
+
+      if((abs(px) < 0.001) && (abs(py) < 0.001)) {
+            px = 0.001;
+            py = 0.001;
       }
-       */
       
       Zsig(0,i) = sqrt(px*px + py*py);
       Zsig(1,i) = atan2(py, px);
